@@ -1,0 +1,58 @@
+import os, zipfile
+
+root = "/mnt/data/PoolTrajectoryAndroid"
+workflow = """name: Build Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Compilar APK Android
+        run: gradle --no-daemon assembleDebug
+
+      - name: Publicar APK para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: pool-trajectory-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+"""
+path = os.path.join(root, ".github", "workflows", "android.yml")
+os.makedirs(os.path.dirname(path), exist_ok=True)
+with open(path, "w", encoding="utf-8") as f:
+    f.write(workflow)
+
+zip_path = "/mnt/data/PoolTrajectoryAndroid_com_workflow.zip"
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+    for dirpath, _, filenames in os.walk(root):
+        for filename in filenames:
+            full = os.path.join(dirpath, filename)
+            z.write(full, os.path.relpath(full, os.path.dirname(root)))
+
+print(zip_path)
+print("Workflow atualizado em:", path)
